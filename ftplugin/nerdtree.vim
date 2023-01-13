@@ -11,6 +11,8 @@ execute "vnoremap <buffer> d :call <SID>ProcessSelection('Deleting', '', functio
 execute "vnoremap <buffer> m :call <SID>ProcessSelection('Moving',  function('PRE_MoveOrCopy'), function('NERDTree_MoveOrCopy', ['Moving']), function('POST_MoveOrCopy'), 0, ".g:nerdtree_vis_confirm_move.")<CR>"
 execute "vnoremap <buffer> c :call <SID>ProcessSelection('Copying', function('PRE_MoveOrCopy'), function('NERDTree_MoveOrCopy', ['Copying']), function('POST_MoveOrCopy'), 0, ".g:nerdtree_vis_confirm_copy.")<CR>"
 
+execute "vnoremap <buffer> s :call <SID>ProcessSelection('Renaming', function('PRE_MultipleRename'), function('NERDTree_MultipleRename', ['Renaming']), function('POST_MultipleRename'), 0, 0)<CR>"
+
 " --------------------------------------------------------------------------------
 " Jump Support
 let g:nerdtree_vis_jumpmark = "n"
@@ -80,6 +82,55 @@ endfunction
 function! POST_MoveOrCopy()
     unlet! s:destination
 endfunction
+
+" --------------------------------------------------------------------------------
+" multiple rename
+function! PRE_MultipleRename()
+    let node = g:NERDTreeFileNode.GetSelected()
+    if !exists('s:destination')
+        let s:destination = node.path.str()
+        if !node.path.isDirectory
+          let s:destination = fnamemodify(s:destination, ':p:h')
+        else
+          let s:destination = fnamemodify(s:destination, ':.')
+        endif
+
+        if s:destination == ''
+            call nerdtree#echo("Error: failed to find the path of some files")
+            unlet! s:destination
+            return 0
+        endif
+        " empty files first
+        call system('echo -en "" > ~/script/originFiles.txt')
+        call system('echo -en "" > ~/script/targetFiles.txt')
+        call nerdtree#echo("paths: " . s:destination)
+    else
+        call nerdtree#echo("Error: some file does NOT exit anymore")
+    endif
+    return 1
+endfunction
+
+function! NERDTree_MultipleRename(operation, node)
+
+    let l:destination = s:destination . fnamemodify(a:node.path.str(), ':t')
+    if a:operation == 'Renaming'
+        call nerdtree#echo("renaming: " . l:destination)
+    else
+        call nerdtree#echo("renaming: " . l:destination)
+    endif
+    " add every items into files
+    call system('echo "' . fnamemodify(a:node.path.str(), ':.') . '" >> ~/script/originFiles.txt')
+    call system('echo "' . fnamemodify(a:node.path.str(), ':.') . '" >> ~/script/targetFiles.txt')
+endfunction
+
+function! POST_MultipleRename()
+    unlet! s:destination
+    execute 'wincmd l'
+    execute 'e!'
+    execute 'wincmd l'
+    execute 'e!'
+endfunction
+
 
 " --------------------------------------------------------------------------------
 " Main Processor
